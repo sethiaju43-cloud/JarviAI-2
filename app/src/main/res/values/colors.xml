@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#050B14</color>
+    <color name="neon">#19F5C8</color>
+    <color name="card">#0A1A24</color>
+    <color name="text_white">#FFFFFF</color>
+    <color name="text_dim">#8FB5B0</color>
+</resources>

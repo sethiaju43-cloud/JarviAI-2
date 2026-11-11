@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Skin (theme) ke andar view par nishaan lagane ke liye -->
+    <item name="skin_bg" type="id" />
+    <item name="skin_text" type="id" />
+    <item name="skin_glow" type="id" />
+    <item name="skin_ver" type="id" />
+</resources>

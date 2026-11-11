@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">JARVI AI</string>
+    <string name="accessibility_desc">Jarvis aapke voice command par Back, Home, Scroll aur Tap jaise kaam karta hai. Ye screen ka text padhta hai (zarurat par screenshot bhi leta hai) aur aapke sawaal ka jawab dene ke liye use aapke chune hue AI (online provider ya phone par local model) ko bhejta hai. Privacy setting se ye band kar sakte ho. Bank, UPI, message aur password apps ki screen ye nahi padhta.</string>
+</resources>
