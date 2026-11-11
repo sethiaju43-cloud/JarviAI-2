@@ -6,10 +6,10 @@ import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 
-/** Jarvi ne kya yaad rakha hai: dekho, badlo, hatao. Sensitive baatein yahan 'Allow' maangti hain. */
+/** Jarvi ne kya yaad rakha hai aur kaun si skills sikhi hain: dekho, badlo, hatao. Sensitive baatein yahan 'Allow' maangti hain. */
 class MemoryActivity : ScreenActivity() {
 
-    override fun screenTitle() = "Memory"
+    override fun screenTitle() = "Memory aur Skills"
 
     private var pendingSave = false
 
@@ -123,12 +123,63 @@ class MemoryActivity : ScreenActivity() {
             })
         }
 
+        container.addView(UiKit.section(c, "🎓 Skills (jo kaam Jarvi ko sikhaya)"))
+        container.addView(UiKit.text(c,
+            "Yahan likho ki kaun sa kaam kaise karna hai. Jab aap milta-julta kaam bologe, Jarvi isi tareeke se karegi.",
+            12f, dim = true))
+        val skills = SkillStore.list(c)
+        if (skills.isEmpty()) container.addView(UiKit.text(c, "Abhi koi skill nahi hai.", 13f, dim = true))
+        for (k in skills) {
+            val card = UiKit.card(c)
+            card.addView(UiKit.text(c, "🎓 " + k.name, 14f, bold = true))
+            if (k.trigger.isNotEmpty()) card.addView(UiKit.text(c, "Jab bolun: " + k.trigger, 12f, dim = true))
+            card.addView(UiKit.text(c, k.steps, 13f))
+            val r = UiKit.row(c)
+            r.addView(UiKit.rowButton(c, "✏️ Badlo") { skillDialog(k) })
+            r.addView(UiKit.rowButton(c, "🗑 Hatao") { SkillStore.remove(c, k.id); rebuild() })
+            card.addView(r)
+            container.addView(card)
+        }
+        container.addView(UiKit.button(c, "➕ Nayi skill sikhao") { skillDialog(null) })
+
         container.addView(UiKit.section(c, "💾 Backup / Restore"))
         container.addView(UiKit.text(c,
-            "Settings, yaadein aur chats ek file mein save hoti hain (file manager mein). Naye phone par wahi file wapas daalo. API keys file mein nahi jaati, wo naye phone par dobara daalni hongi.",
+            "Settings, yaadein, skills aur chats ek file mein save hoti hain (file manager mein). Naye phone par wahi file wapas daalo. API keys file mein nahi jaati, wo naye phone par dobara daalni hongi.",
             12f, dim = true))
         container.addView(UiKit.button(c, "💾 Backup banao (file save)") { startSave() })
         container.addView(UiKit.button(c, "📥 Backup wapas daalo (file chuno)") { startLoad() })
+    }
+
+    private fun skillDialog(k: SkillStore.Skill?) {
+        val c = this
+        val box = android.widget.LinearLayout(c)
+        box.orientation = android.widget.LinearLayout.VERTICAL
+        val pad = UiKit.dp(c, 16)
+        box.setPadding(pad, pad / 2, pad, 0)
+        val etName = android.widget.EditText(c)
+        etName.hint = "Skill ka naam (jaise: WhatsApp message)"
+        val etWhen = android.widget.EditText(c)
+        etWhen.hint = "Jab main bolun (jaise: detective ko message karo)"
+        val etSteps = android.widget.EditText(c)
+        etSteps.hint = "Kya karna hai (jaise: WhatsApp kholo, chat chuno, likho, Send dabao)"
+        if (k != null) {
+            etName.setText(k.name)
+            etWhen.setText(k.trigger)
+            etSteps.setText(k.steps)
+        }
+        box.addView(etName)
+        box.addView(etWhen)
+        box.addView(etSteps)
+        AlertDialog.Builder(c).setTitle(if (k == null) "Nayi skill" else "Skill badlo").setView(box)
+            .setPositiveButton("Save") { _, _ ->
+                val a = etName.text.toString()
+                val b = etWhen.text.toString()
+                val d = etSteps.text.toString()
+                val ok = if (k == null) SkillStore.add(c, a, b, d) else SkillStore.update(c, k.id, a, b, d)
+                if (!ok) UiKit.toast(c, "Naam aur 'kya karna hai' zaroor likho")
+                rebuild()
+            }
+            .setNegativeButton("Nahi", null).show()
     }
 
     private fun editDialog(e: MemoryEntry) {
