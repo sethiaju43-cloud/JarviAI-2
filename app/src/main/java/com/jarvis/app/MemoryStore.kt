@@ -141,8 +141,11 @@ object MemoryStore {
         if (index in pending.indices) pending.removeAt(index)
     }
 
-    /** Prompt mein jodne ke liye: sirf sawaal se milti-julti yaadein */
-    fun contextLine(ctx: Context, query: String): String {
+    /** Prompt mein jodne ke liye: sawaal se milti-julti yaadein aur skills */
+    fun contextLine(ctx: Context, query: String): String =
+        memoryLine(ctx, query) + SkillStore.line(ctx, query)
+
+    private fun memoryLine(ctx: Context, query: String): String {
         if (!enabled(ctx)) return ""
         val rel = MemoryRanker.rank(query, list(ctx), 6)
         if (rel.isEmpty()) return ""
