@@ -6,7 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Backup / Restore: settings, yaaddasht (memory) aur chats ek JSON file mein.
+ * Backup / Restore: settings, yaaddasht (memory), skills aur chats ek JSON file mein.
  * API keys aur tokens file mein NAHI jaate (wo sirf is phone ke tijori mein rehte hain, doosre phone par chalte hi nahi).
  */
 object BackupManager {
@@ -106,6 +106,16 @@ object BackupManager {
         }
         root.put("memory", mem)
 
+        val skills = JSONArray()
+        for (k in SkillStore.list(ctx)) {
+            val o = JSONObject()
+            o.put("n", k.name)
+            o.put("w", k.trigger)
+            o.put("s", k.steps)
+            skills.put(o)
+        }
+        root.put("skills", skills)
+
         root.put("chat", msgsToJson(ChatStore.load(ctx)))
 
         val arch = JSONArray()
@@ -121,7 +131,7 @@ object BackupManager {
         return root.toString(2)
     }
 
-    /** Backup wapas daalo. Purani cheezein mitati nahi: yaadein aur chats jud jati hain, settings badal jati hain */
+    /** Backup wapas daalo. Purani cheezein mitati nahi: yaadein, skills aur chats jud jati hain, settings badal jati hain */
     fun import(ctx: Context, json: String): Outcome {
         val root = try {
             JSONObject(json)
@@ -135,6 +145,7 @@ object BackupManager {
         var nPrefs = 0
         var nMem = 0
         var nChats = 0
+        var nSkills = 0
 
         val pa = root.optJSONArray("prefs")
         if (pa != null) {
@@ -152,6 +163,14 @@ object BackupManager {
                 val o = ma.optJSONObject(i) ?: continue
                 val r = MemoryStore.add(ctx, o.optString("t", ""), o.optString("k", "fact"), o.optBoolean("a", false), true)
                 if (r == MemoryStore.AddResult.SAVED) nMem++
+            }
+        }
+
+        val sa = root.optJSONArray("skills")
+        if (sa != null) {
+            for (i in 0 until sa.length()) {
+                val o = sa.optJSONObject(i) ?: continue
+                if (SkillStore.add(ctx, o.optString("n", ""), o.optString("w", ""), o.optString("s", ""))) nSkills++
             }
         }
 
@@ -177,7 +196,7 @@ object BackupManager {
 
         return Outcome(
             true,
-            "Backup wapas aa gaya ✅ Settings: " + nPrefs + ", Yaadein: " + nMem + ", Purani chats: " + nChats +
+            "Backup wapas aa gaya ✅ Settings: " + nPrefs + ", Yaadein: " + nMem + ", Skills: " + nSkills + ", Purani chats: " + nChats +
                 ". App band karke dobara kholo."
         )
     }
