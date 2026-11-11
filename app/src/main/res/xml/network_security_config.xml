@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Sirf HTTPS: koi bhi API/model download khuli (http) connection se nahi hoga -->
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>
