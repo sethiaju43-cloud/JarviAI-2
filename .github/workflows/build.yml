@@ -1,0 +1,66 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.7
+
+      # Pehle unit tests. Fail hone par bhi aage badhte hain (APK phir bhi banegi),
+      # par neeche ke summary mein saaf dikhega ki tests pass hue ya fail.
+      - name: Unit tests
+        id: tests
+        continue-on-error: true
+        run: gradle testDebugUnitTest
+
+      - name: Test report upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Test-Report
+          path: app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
+
+      - name: Build debug APK
+        run: gradle assembleDebug
+
+      - name: APK upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jarvis-APK
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Test result summary
+        if: always()
+        run: |
+          case "${{ steps.tests.outcome }}" in
+            success)
+              echo "### Unit tests: PASS" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            failure)
+              echo "### Unit tests: FAIL - Test-Report artifact dekho" >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning title=Unit tests FAIL::Kuch tests fail hue. Test-Report artifact dekho. APK phir bhi bani hai."
+              ;;
+            *)
+              echo "### Unit tests: chale hi nahi" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+          esac
