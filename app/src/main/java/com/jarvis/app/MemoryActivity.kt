@@ -11,17 +11,26 @@ class MemoryActivity : ScreenActivity() {
 
     override fun screenTitle() = "Memory aur Skills"
 
-    private var pendingSave = false
+    // 0 = backup wapas daalna, 1 = backup file save karna, 2 = auto-backup folder chunna
+    private var mode = 0
 
     private val pick = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
         val uri = res.data?.data
         if (res.resultCode == Activity.RESULT_OK && uri != null) {
-            if (pendingSave) writeBackup(uri) else readBackup(uri)
+            if (mode == 1) {
+                writeBackup(uri)
+            } else if (mode == 2) {
+                AutoBackup.setFolder(applicationContext, uri)
+                UiKit.toast(this, "Folder chun liya ✅")
+                rebuild()
+            } else {
+                readBackup(uri)
+            }
         }
     }
 
     private fun startSave() {
-        pendingSave = true
+        mode = 1
         val stamp = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
         val i = Intent(Intent.ACTION_CREATE_DOCUMENT)
         i.addCategory(Intent.CATEGORY_OPENABLE)
@@ -30,8 +39,29 @@ class MemoryActivity : ScreenActivity() {
         pick.launch(i)
     }
 
+    private fun startFolder() {
+        mode = 2
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+        i.addFlags(
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+        )
+        pick.launch(i)
+    }
+
+    private fun runAutoNow() {
+        val app = applicationContext
+        Thread {
+            val ok = AutoBackup.runNow(app)
+            runOnUiThread {
+                UiKit.toast(this@MemoryActivity, if (ok) "Auto-backup ban gaya ✅" else "Pehle folder chuno, phir try karo")
+                rebuild()
+            }
+        }.start()
+    }
+
     private fun startLoad() {
-        pendingSave = false
+        mode = 0
         val i = Intent(Intent.ACTION_OPEN_DOCUMENT)
         i.addCategory(Intent.CATEGORY_OPENABLE)
         i.type = "*/*"
@@ -148,6 +178,24 @@ class MemoryActivity : ScreenActivity() {
             12f, dim = true))
         container.addView(UiKit.button(c, "💾 Backup banao (file save)") { startSave() })
         container.addView(UiKit.button(c, "📥 Backup wapas daalo (file chuno)") { startLoad() })
+
+        container.addView(UiKit.section(c, "🔁 Auto-backup (har 7 din mein)"))
+        container.addView(UiKit.text(c,
+            "Ek baar folder chuno (jaise Downloads ya Documents). Phir app kholne par agar 7 din ho gaye to backup khud ban jayega. Purani auto-backup files file manager se kabhi bhi hata sakte ho.",
+            12f, dim = true))
+        container.addView(UiKit.switchRow(c, "Auto-backup chalu", AutoBackup.enabled(c)) { on ->
+            AutoBackup.setEnabled(c, on)
+            if (on && AutoBackup.folder(c) == null) UiKit.toast(c, "Neeche se pehle folder chuno")
+        })
+        val folderText = if (AutoBackup.folder(c) == null) "Folder: abhi nahi chuna" else "Folder: chuna hua hai ✅"
+        container.addView(UiKit.text(c, folderText, 12f, dim = true))
+        val last = AutoBackup.lastTime(c)
+        if (last > 0L) {
+            val whenText = java.text.SimpleDateFormat("dd MMM yyyy, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(last))
+            container.addView(UiKit.text(c, "Aakhri auto-backup: " + whenText, 12f, dim = true))
+        }
+        container.addView(UiKit.button(c, "📁 Backup folder chuno") { startFolder() })
+        container.addView(UiKit.button(c, "▶️ Abhi auto-backup chalao") { runAutoNow() })
     }
 
     private fun skillDialog(k: SkillStore.Skill?) {
