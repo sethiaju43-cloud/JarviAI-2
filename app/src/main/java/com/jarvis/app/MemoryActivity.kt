@@ -72,7 +72,7 @@ class MemoryActivity : ScreenActivity() {
         val app = applicationContext
         Thread {
             val msg = try {
-                val data = BackupManager.export(app)
+                val data = BackupManager.exportSecure(app)
                 val out = contentResolver.openOutputStream(uri, "wt")
                 if (out == null) {
                     "File nahi khul payi"
@@ -90,22 +90,75 @@ class MemoryActivity : ScreenActivity() {
     private fun readBackup(uri: Uri) {
         val app = applicationContext
         Thread {
-            val res = try {
+            var text = ""
+            var err = ""
+            try {
                 val ins = contentResolver.openInputStream(uri)
                 val bytes = if (ins == null) ByteArray(0) else ins.use { it.readBytes() }
                 if (bytes.isEmpty() || bytes.size > 8 * 1024 * 1024) {
-                    BackupManager.Outcome(false, "File khali ya bahut badi hai")
+                    err = "File khali ya bahut badi hai"
                 } else {
-                    BackupManager.import(app, String(bytes, Charsets.UTF_8))
+                    text = String(bytes, Charsets.UTF_8)
                 }
             } catch (e: Exception) {
-                BackupManager.Outcome(false, "File padh nahi payi")
+                err = "File padh nahi payi"
             }
-            runOnUiThread {
-                UiKit.toast(this@MemoryActivity, res.message)
-                rebuild()
+            if (err.isNotEmpty()) {
+                runOnUiThread { UiKit.toast(this@MemoryActivity, err) }
+            } else {
+                runImport(app, text, null)
             }
         }.start()
+    }
+
+    /** Import karo. Password chahiye to dialog dikhao aur wahi text dobara try karo */
+    private fun runImport(app: android.content.Context, text: String, password: String?) {
+        val res = try {
+            BackupManager.import(app, text, password)
+        } catch (e: Exception) {
+            BackupManager.Outcome(false, "File padh nahi payi")
+        }
+        runOnUiThread {
+            UiKit.toast(this@MemoryActivity, res.message)
+            if (res.needsPassword) {
+                askPassword(text)
+            } else {
+                rebuild()
+            }
+        }
+    }
+
+    private fun askPassword(text: String) {
+        val c = this
+        val app = applicationContext
+        val et = android.widget.EditText(c)
+        et.hint = "Backup ka password"
+        et.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        AlertDialog.Builder(c).setTitle("Password daalo").setView(et)
+            .setPositiveButton("Kholo") { _, _ ->
+                val pw = et.text.toString()
+                Thread { runImport(app, text, pw) }.start()
+            }
+            .setNegativeButton("Nahi", null).show()
+    }
+
+    private fun passwordDialog() {
+        val c = this
+        val et = android.widget.EditText(c)
+        et.hint = "Naya password (kam se kam 4 akshar)"
+        et.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        AlertDialog.Builder(c).setTitle("Backup password").setView(et)
+            .setPositiveButton("Save") { _, _ ->
+                val pw = et.text.toString().trim()
+                if (pw.length < 4) {
+                    UiKit.toast(c, "Kam se kam 4 akshar likho")
+                } else {
+                    AutoBackup.setPassword(c, pw)
+                    UiKit.toast(c, "Password lag gaya 🔐 Isse yaad rakho")
+                    rebuild()
+                }
+            }
+            .setNegativeButton("Nahi", null).show()
     }
 
     override fun build() {
@@ -178,6 +231,21 @@ class MemoryActivity : ScreenActivity() {
             12f, dim = true))
         container.addView(UiKit.button(c, "💾 Backup banao (file save)") { startSave() })
         container.addView(UiKit.button(c, "📥 Backup wapas daalo (file chuno)") { startLoad() })
+
+        container.addView(UiKit.section(c, "🔐 Backup password"))
+        container.addView(UiKit.text(c,
+            "Password lagaoge to backup file (aur auto-backup file) band ho jayegi, bina password ke koi nahi khol sakega. Password bhool gaye to backup kabhi nahi khulega, isliye kahin likh lo. Wapas daalte waqt app khud password poochhegi.",
+            12f, dim = true))
+        val hasPw = AutoBackup.password(c).isNotEmpty()
+        container.addView(UiKit.text(c, if (hasPw) "Password: laga hua hai 🔐" else "Password: nahi lagaya", 12f, dim = true))
+        container.addView(UiKit.button(c, if (hasPw) "🔐 Password badlo" else "🔐 Password lagao") { passwordDialog() })
+        if (hasPw) {
+            container.addView(UiKit.button(c, "🔓 Password hatao") {
+                AutoBackup.setPassword(c, "")
+                UiKit.toast(c, "Password hata diya")
+                rebuild()
+            })
+        }
 
         container.addView(UiKit.section(c, "🔁 Auto-backup (har 7 din mein)"))
         container.addView(UiKit.text(c,
