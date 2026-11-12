@@ -58,6 +58,15 @@ object MacroRunner {
         return null
     }
 
+    /** Test button ke liye: skill abhi chalao. Seedhe steps na hon to samjha do */
+    fun runSkill(context: Context, k: SkillStore.Skill): String {
+        val steps = stepsOf(k.steps)
+            ?: return "Is skill ke steps seedhe (OPEN:/ACTION:) nahi hain, ye AI ke liye salah hai 🤖"
+        if (running) return "Ek skill pehle se chal rahi hai. 'Ruko' bolo ya thoda ruko 🙂"
+        start(context.applicationContext, steps)
+        return "Chala rahi hun 🎯"
+    }
+
     private fun start(app: Context, steps: List<String>) {
         running = true
         stopFlag = false
