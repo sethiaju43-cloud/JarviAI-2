@@ -182,6 +182,12 @@ object CommandHandler {
     private val handleLock = Any()
 
     fun handle(context: Context, raw: String): String? {
+        // Seedhe-steps wali skill (bina AI ke): trigger milte hi steps alag thread mein chala do
+        val macro = MacroRunner.tryRun(context, raw)
+        if (macro != null) {
+            Brain.noteLocal(context, raw, macro)
+            return macro
+        }
         synchronized(handleLock) {
             val r = handleInner(context, raw)
             if (r != null) Brain.noteLocal(context, raw, r)
@@ -207,6 +213,7 @@ object CommandHandler {
         // Scroll rokna
         if (wordCount <= 4 && words.any { it == "ruko" || it == "stop" || it == "bas" }) {
             scrollToken++
+            MacroRunner.stop()
             Brain.requestStop()
             return "Ruk gayi 🛑"
         }
