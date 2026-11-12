@@ -7,7 +7,8 @@ import android.provider.DocumentsContract
 
 /**
  * Auto-backup: user ek baar folder chunta hai. Uske baad app khulne par agar 7 din se zyada ho gaye
- * to backup file us folder mein khud ban jati hai. (Ye settings is file mein hain, backup mein nahi jaati.)
+ * to backup file us folder mein khud ban jati hai. Password laga ho to file band (encrypted) banti hai.
+ * (Ye settings is file mein hain, backup mein nahi jaati.)
  */
 object AutoBackup {
 
@@ -26,6 +27,24 @@ object AutoBackup {
     fun folder(ctx: Context): String? = sp(ctx).getString("uri", null)
 
     fun lastTime(ctx: Context): Long = sp(ctx).getLong("last", 0L)
+
+    /** Backup ka password (is phone mein tijori se band karke rakha jata hai, taaki auto-backup chal sake). Khali = password nahi */
+    fun password(ctx: Context): String {
+        val stored = sp(ctx).getString("pw", null) ?: return ""
+        return try {
+            ApiKeyStore.open(stored)
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    fun setPassword(ctx: Context, pw: String) {
+        if (pw.isEmpty()) {
+            sp(ctx).edit().remove("pw").apply()
+        } else {
+            sp(ctx).edit().putString("pw", ApiKeyStore.seal(pw)).apply()
+        }
+    }
 
     /** Chuna hua folder hamesha ke liye yaad rakho */
     fun setFolder(ctx: Context, uri: Uri) {
@@ -60,7 +79,7 @@ object AutoBackup {
             if (doc == null) return false
             val out = app.contentResolver.openOutputStream(doc, "wt")
             if (out == null) return false
-            out.use { it.write(BackupManager.export(app).toByteArray(Charsets.UTF_8)) }
+            out.use { it.write(BackupManager.exportSecure(app).toByteArray(Charsets.UTF_8)) }
             sp(app).edit().putLong("last", System.currentTimeMillis()).apply()
             return true
         } catch (e: Exception) {
