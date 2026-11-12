@@ -208,16 +208,19 @@ class MemoryActivity : ScreenActivity() {
 
         container.addView(UiKit.section(c, "🎓 Skills (jo kaam Jarvi ko sikhaya)"))
         container.addView(UiKit.text(c,
-            "Yahan likho ki kaun sa kaam kaise karna hai. Jab aap milta-julta kaam bologe, Jarvi isi tareeke se karegi.",
+            "Yahan likho ki kaun sa kaam kaise karna hai. Normal likhoge to AI ko salah banegi. Steps OPEN: / ACTION: me likhoge (; se alag) aur wahi vaakya bologe to bina AI ke turant chalegi.",
             12f, dim = true))
         val skills = SkillStore.list(c)
         if (skills.isEmpty()) container.addView(UiKit.text(c, "Abhi koi skill nahi hai.", 13f, dim = true))
         for (k in skills) {
             val card = UiKit.card(c)
+            val direct = MacroRunner.stepsOf(k.steps) != null
             card.addView(UiKit.text(c, "🎓 " + k.name, 14f, bold = true))
+            card.addView(UiKit.text(c, if (direct) "⚡ Seedhi skill (bina AI, turant)" else "🤖 AI ke liye salah", 11f, dim = true))
             if (k.trigger.isNotEmpty()) card.addView(UiKit.text(c, "Jab bolun: " + k.trigger, 12f, dim = true))
             card.addView(UiKit.text(c, k.steps, 13f))
             val r = UiKit.row(c)
+            if (direct) r.addView(UiKit.rowButton(c, "▶️ Chalao") { UiKit.toast(c, MacroRunner.runSkill(c, k)) })
             r.addView(UiKit.rowButton(c, "✏️ Badlo") { skillDialog(k) })
             r.addView(UiKit.rowButton(c, "🗑 Hatao") { SkillStore.remove(c, k.id); rebuild() })
             card.addView(r)
@@ -283,9 +286,13 @@ class MemoryActivity : ScreenActivity() {
             etWhen.setText(k.trigger)
             etSteps.setText(k.steps)
         }
+        val tip = android.widget.TextView(c)
+        tip.text = "Seedhi skill (bina AI, turant): har step OPEN: ya ACTION: se likho, ; se alag. Jaise: OPEN: WhatsApp ; ACTION: CLICK detective ; ACTION: TYPE hello. Normal likhoge to AI ko salah banegi."
+        tip.textSize = 12f
         box.addView(etName)
         box.addView(etWhen)
         box.addView(etSteps)
+        box.addView(tip)
         AlertDialog.Builder(c).setTitle(if (k == null) "Nayi skill" else "Skill badlo").setView(box)
             .setPositiveButton("Save") { _, _ ->
                 val a = etName.text.toString()
