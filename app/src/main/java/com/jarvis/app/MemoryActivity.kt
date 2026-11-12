@@ -227,14 +227,14 @@ class MemoryActivity : ScreenActivity() {
 
         container.addView(UiKit.section(c, "💾 Backup / Restore"))
         container.addView(UiKit.text(c,
-            "Settings, yaadein, skills aur chats ek file mein save hoti hain (file manager mein). Naye phone par wahi file wapas daalo. API keys file mein nahi jaati, wo naye phone par dobara daalni hongi.",
+            "Settings, yaadein, skills aur chats ek file mein save hoti hain (file manager mein). Naye phone par wahi file wapas daalo. API keys sirf tab file mein jaati hain jab neeche backup password laga ho (band file ke andar), warna dobara daalni hongi.",
             12f, dim = true))
         container.addView(UiKit.button(c, "💾 Backup banao (file save)") { startSave() })
         container.addView(UiKit.button(c, "📥 Backup wapas daalo (file chuno)") { startLoad() })
 
         container.addView(UiKit.section(c, "🔐 Backup password"))
         container.addView(UiKit.text(c,
-            "Password lagaoge to backup file (aur auto-backup file) band ho jayegi, bina password ke koi nahi khol sakega. Password bhool gaye to backup kabhi nahi khulega, isliye kahin likh lo. Wapas daalte waqt app khud password poochhegi.",
+            "Password lagaoge to backup file (aur auto-backup file) band ho jayegi, bina password ke koi nahi khol sakega. Tab aapki API keys bhi isi band file ke andar jayengi, naye phone par dobara nahi daalni padengi. Password bhool gaye to backup kabhi nahi khulega, isliye kahin likh lo. Wapas daalte waqt app khud password poochhegi.",
             12f, dim = true))
         val hasPw = AutoBackup.password(c).isNotEmpty()
         container.addView(UiKit.text(c, if (hasPw) "Password: laga hua hai 🔐" else "Password: nahi lagaya", 12f, dim = true))
