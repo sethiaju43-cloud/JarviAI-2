@@ -15,7 +15,8 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * Backup / Restore: settings, yaaddasht (memory), skills aur chats ek JSON file mein.
  * Password lagao to poori file AES-256 se band (encrypt) ho jati hai.
- * API keys aur tokens file mein NAHI jaate (wo sirf is phone ke tijori mein rehte hain, doosre phone par chalte hi nahi).
+ * API keys SIRF tab jaati hain jab backup password laga ho (tab wo band file ke andar rehti hain).
+ * Bina password ke backup mein keys kabhi nahi jaati.
  */
 object BackupManager {
 
@@ -74,11 +75,36 @@ object BackupManager {
         }
     }
 
-    /** Backup text: agar password laga hai to band (encrypted), warna seedha */
+    /** Backup text: agar password laga hai to band (encrypted, keys ke saath), warna seedha (keys ke bina) */
     fun exportSecure(ctx: Context): String {
-        val plain = export(ctx)
         val pw = AutoBackup.password(ctx)
-        return if (pw.isEmpty()) plain else encrypt(plain, pw)
+        return if (pw.isEmpty()) export(ctx, false) else encrypt(export(ctx, true), pw)
+    }
+
+    // ---------- API keys (sirf password wale backup mein) ----------
+    private fun keyNames(): List<String> {
+        val out = ArrayList<String>()
+        for (p in ProviderRegistry.presets) out.add("prov:" + p.id)
+        out.add("search_tavily")
+        out.add("search_brave")
+        out.add("hf_token")
+        return out
+    }
+
+    private fun readKey(ctx: Context, name: String): String {
+        if (name == "prov:gemini") return ApiKeyStore.getKey(ctx)
+        if (name.startsWith("prov:")) return ApiKeyStore.getSecret(ctx, "prov_" + name.removePrefix("prov:"))
+        return ApiKeyStore.getSecret(ctx, name)
+    }
+
+    private fun writeKey(ctx: Context, name: String, value: String) {
+        if (name == "prov:gemini") {
+            ApiKeyStore.setKey(ctx, value)
+        } else if (name.startsWith("prov:")) {
+            ApiKeyStore.setSecret(ctx, "prov_" + name.removePrefix("prov:"), value)
+        } else {
+            ApiKeyStore.setSecret(ctx, name, value)
+        }
     }
 
     private fun skip(key: String): Boolean {
@@ -145,8 +171,8 @@ object BackupManager {
         return out
     }
 
-    /** Poora backup ek text (JSON) mein */
-    fun export(ctx: Context): String {
+    /** Poora backup ek text (JSON) mein. withKeys = true tabhi dena jab text aage password se band hone wala ho */
+    fun export(ctx: Context, withKeys: Boolean = false): String {
         val root = JSONObject()
         root.put("format", FORMAT)
         root.put("version", VERSION)
@@ -193,6 +219,20 @@ object BackupManager {
         }
         root.put("archive", arch)
 
+        if (withKeys) {
+            val keys = JSONArray()
+            for (n in keyNames()) {
+                val v = readKey(ctx, n)
+                if (v.isNotBlank()) {
+                    val o = JSONObject()
+                    o.put("n", n)
+                    o.put("v", v)
+                    keys.put(o)
+                }
+            }
+            root.put("keys", keys)
+        }
+
         return root.toString(2)
     }
 
@@ -222,6 +262,7 @@ object BackupManager {
         var nMem = 0
         var nChats = 0
         var nSkills = 0
+        var nKeys = 0
 
         val pa = root.optJSONArray("prefs")
         if (pa != null) {
@@ -250,6 +291,20 @@ object BackupManager {
             }
         }
 
+        val ka = root.optJSONArray("keys")
+        if (ka != null) {
+            val allowed = keyNames()
+            for (i in 0 until ka.length()) {
+                val o = ka.optJSONObject(i) ?: continue
+                val n = o.optString("n", "")
+                val v = o.optString("v", "")
+                if (n in allowed && v.isNotBlank()) {
+                    writeKey(ctx, n, v)
+                    nKeys++
+                }
+            }
+        }
+
         val current = ChatStore.load(ctx)
         val aa = root.optJSONArray("archive")
         if (aa != null) {
@@ -272,7 +327,7 @@ object BackupManager {
 
         return Outcome(
             true,
-            "Backup wapas aa gaya ✅ Settings: " + nPrefs + ", Yaadein: " + nMem + ", Skills: " + nSkills + ", Purani chats: " + nChats +
+            "Backup wapas aa gaya ✅ Settings: " + nPrefs + ", Yaadein: " + nMem + ", Skills: " + nSkills + ", Keys: " + nKeys + ", Purani chats: " + nChats +
                 ". App band karke dobara kholo."
         )
     }
