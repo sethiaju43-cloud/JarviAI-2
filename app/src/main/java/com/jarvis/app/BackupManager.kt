@@ -2,19 +2,84 @@ package com.jarvis.app
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
+import java.security.SecureRandom
+import javax.crypto.Cipher
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.PBEKeySpec
+import javax.crypto.spec.SecretKeySpec
 
 /**
  * Backup / Restore: settings, yaaddasht (memory), skills aur chats ek JSON file mein.
+ * Password lagao to poori file AES-256 se band (encrypt) ho jati hai.
  * API keys aur tokens file mein NAHI jaate (wo sirf is phone ke tijori mein rehte hain, doosre phone par chalte hi nahi).
  */
 object BackupManager {
 
     private const val FORMAT = "jarvis-backup"
     private const val VERSION = 1
+    private const val ENC_FORMAT = "jarvis-backup-encrypted"
 
-    class Outcome(val ok: Boolean, val message: String)
+    class Outcome(val ok: Boolean, val message: String, val needsPassword: Boolean = false)
+
+    private fun deriveKey(password: String, salt: ByteArray): SecretKeySpec {
+        val spec = PBEKeySpec(password.toCharArray(), salt, 120000, 256)
+        val f = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+        return SecretKeySpec(f.generateSecret(spec).encoded, "AES")
+    }
+
+    /** Text ko password se band karo (AES-256-GCM) */
+    fun encrypt(plain: String, password: String): String {
+        val rnd = SecureRandom()
+        val salt = ByteArray(16)
+        rnd.nextBytes(salt)
+        val iv = ByteArray(12)
+        rnd.nextBytes(iv)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, deriveKey(password, salt), GCMParameterSpec(128, iv))
+        val enc = cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
+        val o = JSONObject()
+        o.put("format", ENC_FORMAT)
+        o.put("version", VERSION)
+        o.put("salt", Base64.encodeToString(salt, Base64.NO_WRAP))
+        o.put("iv", Base64.encodeToString(iv, Base64.NO_WRAP))
+        o.put("data", Base64.encodeToString(enc, Base64.NO_WRAP))
+        return o.toString(2)
+    }
+
+    /** Band file khologe. Password galat ho to null */
+    fun decrypt(text: String, password: String): String? {
+        try {
+            val o = JSONObject(text)
+            val salt = Base64.decode(o.getString("salt"), Base64.NO_WRAP)
+            val iv = Base64.decode(o.getString("iv"), Base64.NO_WRAP)
+            val data = Base64.decode(o.getString("data"), Base64.NO_WRAP)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, deriveKey(password, salt), GCMParameterSpec(128, iv))
+            return String(cipher.doFinal(data), Charsets.UTF_8)
+        } catch (e: Exception) {
+            return null
+        }
+    }
+
+    /** Kya ye file password se band hai? */
+    fun isEncrypted(text: String): Boolean {
+        return try {
+            JSONObject(text).optString("format", "") == ENC_FORMAT
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Backup text: agar password laga hai to band (encrypted), warna seedha */
+    fun exportSecure(ctx: Context): String {
+        val plain = export(ctx)
+        val pw = AutoBackup.password(ctx)
+        return if (pw.isEmpty()) plain else encrypt(plain, pw)
+    }
 
     private fun skip(key: String): Boolean {
         val k = key.lowercase()
@@ -131,8 +196,19 @@ object BackupManager {
         return root.toString(2)
     }
 
-    /** Backup wapas daalo. Purani cheezein mitati nahi: yaadein, skills aur chats jud jati hain, settings badal jati hain */
-    fun import(ctx: Context, json: String): Outcome {
+    /** Backup wapas daalo. Purani cheezein mitati nahi: yaadein aur chats jud jati hain, settings badal jati hain */
+    fun import(ctx: Context, jsonIn: String, password: String? = null): Outcome {
+        var json = jsonIn
+        if (isEncrypted(jsonIn)) {
+            if (password.isNullOrEmpty()) {
+                return Outcome(false, "Ye backup password se band hai", true)
+            }
+            val opened = decrypt(jsonIn, password)
+            if (opened == null) {
+                return Outcome(false, "Password galat hai", true)
+            }
+            json = opened
+        }
         val root = try {
             JSONObject(json)
         } catch (e: Exception) {
