@@ -41,9 +41,6 @@ class SettingsActivity : ScreenActivity() {
         // ---------- AI ----------
         container.addView(UiKit.section(c, "🤖 AI aur Models"))
         container.addView(UiKit.text(c, ModelRouter.statusLine(c), 13f, dim = true))
-        container.addView(UiKit.button(c, "📱 Local AI models (offline) + download manager") {
-            startActivity(Intent(c, ModelsActivity::class.java))
-        })
         container.addView(UiKit.button(c, "☁️ Online AI providers + API keys + Search") {
             startActivity(Intent(c, ProvidersActivity::class.java))
         })
@@ -195,21 +192,6 @@ class SettingsActivity : ScreenActivity() {
                     UiKit.toast(c, "Sab mita diya")
                     rebuild()
                 }.setNegativeButton("Nahi", null).show()
-        })
-
-        // ---------- Battery ----------
-        container.addView(UiKit.section(c, "🔋 Battery aur performance"))
-        container.addView(UiKit.switchRow(c, "Phone garam / battery kam ho to local model se bacho", Prefs.batterySaver(c)) { Prefs.setBool(c, "battery_saver", it) })
-        val idle = Prefs.idleUnloadMin(c)
-        container.addView(UiKit.button(c, "⏱ Local model kitni der baad hatayein: " + (if (idle <= 0) "kabhi nahi" else "$idle min")) {
-            val opts = arrayOf("1 min", "3 min", "10 min", "Kabhi nahi")
-            val vals = intArrayOf(1, 3, 10, 0)
-            AlertDialog.Builder(c).setTitle("Idle unload").setItems(opts) { _, i ->
-                Prefs.setInt(c, "local_idle_min", vals[i]); rebuild()
-            }.show()
-        })
-        container.addView(UiKit.switchRow(c, "Local model par GPU (experimental, kuch phones par crash kar sakta hai)", Prefs.localGpu(c)) {
-            Prefs.setBool(c, "local_gpu", it); LocalLlm.unload("setting badli")
         })
 
         // ---------- Storage ----------

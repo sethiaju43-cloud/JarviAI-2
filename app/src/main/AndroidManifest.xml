@@ -61,16 +61,10 @@
             android:exported="false" />
         <activity android:name=".MemoryActivity" android:exported="false" />
         <activity android:name=".HistoryActivity" android:exported="false" />
-        <activity android:name=".ModelsActivity" android:exported="false" />
         <activity android:name=".ProvidersActivity" android:exported="false" />
         <activity android:name=".VoiceStudioActivity" android:exported="false" />
         <activity android:name=".DesignActivity" android:exported="false" />
         <activity android:name=".DashboardActivity" android:exported="false" />
-
-        <service
-            android:name=".ModelDownloadService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
 
         <service
             android:name=".FloatingService"

@@ -89,7 +89,6 @@ class ChatActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             tts?.stop()
             b.btnStopSpeak.visibility = View.GONE
         }
-        b.tvModel.setOnClickListener { startActivity(Intent(this, ModelsActivity::class.java)) }
         b.etInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 sendFromInput()
@@ -562,7 +561,6 @@ class ChatActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val pm = PopupMenu(this, anchor)
         pm.menu.add(0, 1, 0, "➕ Nayi chat")
         pm.menu.add(0, 2, 1, "🕘 Chat history")
-        pm.menu.add(0, 3, 2, "📱 Local AI models")
         pm.menu.add(0, 4, 3, "☁️ Online AI providers")
         pm.menu.add(0, 5, 4, "📝 Memory")
         pm.menu.add(0, 6, 5, "⚙️ Settings")
@@ -579,7 +577,6 @@ class ChatActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             when (mi.itemId) {
                 1 -> newChat()
                 2 -> startActivity(Intent(this, HistoryActivity::class.java))
-                3 -> startActivity(Intent(this, ModelsActivity::class.java))
                 4 -> startActivity(Intent(this, ProvidersActivity::class.java))
                 5 -> startActivity(Intent(this, MemoryActivity::class.java))
                 6 -> startActivity(Intent(this, SettingsActivity::class.java))

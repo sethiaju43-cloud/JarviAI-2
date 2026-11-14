@@ -3,40 +3,6 @@ package com.jarvis.app
 import android.content.Context
 import android.util.Log
 
-/** Local model ko router ke liye backend banata hai */
-class LocalBackend(private val ctx: Context, private val m: LocalModel) : Backend {
-    override val id: String get() = "local:" + m.id
-    override val label: String get() = "📱 " + m.name.substringBefore(" (") + " (offline)"
-    override val isLocal: Boolean get() = true
-    override val supportsVision: Boolean get() = false
-    override val supportsSearch: Boolean get() = false
-    override val capability: Int get() = ModelRank.score(m.id)
-
-    override fun call(req: RouterRequest): Outcome {
-        if (!LocalLlm.isLoaded() || LocalLlm.loadedModelId() != m.id) {
-            ModelRouter.onStatus?.invoke("Local model load ho raha hai (pehli baar kuch second lagte hain)...")
-        }
-        val user = req.history.lastOrNull()?.second ?: ""
-        if (user.isBlank()) return Outcome(false, "Sawaal khali", ErrKind.BAD_REQUEST)
-        // Phone ke aam commands (torch, volume, call, alarm...) chhota model nahi samajhta:
-        // rules se seedha ACTION line bana do, model ko load karne ki zaroorat nahi.
-        val ruleCmd = OfflineCommands.parse(user)
-        if (ruleCmd != null) return Outcome(true, ruleCmd)
-        val older = req.history.dropLast(1)
-        val hist = ContextTrimmer.trim(older, 1200, 12)
-        var r = LocalLlm.generate(ctx, m, req.systemLocal, hist, user, ModelRouter.onPartial, ModelRouter.stopCheck)
-        // User ne "Ruko" bola: ise error mat maano (warna model kuch der "rest" par chala jata)
-        if (r.stopped) return Outcome(true, r.text)
-        if (!r.ok && hist.isNotEmpty() &&
-            (r.error.contains("token", true) || r.error.contains("length", true) || r.error.contains("exceed", true))
-        ) {
-            r = LocalLlm.generate(ctx, m, req.systemLocal, emptyList(), user, ModelRouter.onPartial, ModelRouter.stopCheck)
-            if (r.stopped) return Outcome(true, r.text)
-        }
-        return if (r.ok) Outcome(true, r.text) else Outcome(false, r.error, ErrKind.OTHER)
-    }
-}
-
 /** Kaun sa model chalega ye tay karta hai: online/local, fallback, retry, status */
 object ModelRouter {
 
@@ -113,11 +79,9 @@ object ModelRouter {
         return out
     }
 
-    fun localBackend(ctx: Context): Backend? =
-        LocalLlm.activeModel(ctx)?.let { LocalBackend(ctx, it) }
+    fun localBackend(ctx: Context): Backend? = null
 
-    fun avoidLocal(ctx: Context): Boolean =
-        Prefs.batterySaver(ctx) && ModelFit.shouldAvoidLocal(DeviceInfo.snapshot(ctx))
+    fun avoidLocal(ctx: Context): Boolean = false
 
     fun plan(ctx: Context, task: Task, needsVision: Boolean): List<Backend> =
         applyRoles(

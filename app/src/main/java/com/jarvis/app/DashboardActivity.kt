@@ -34,20 +34,6 @@ class DashboardActivity : ScreenActivity() {
                 "\nStorage khali: " + snap.freeStorageMb + " MB", 13f, dim = true))
         container.addView(st)
 
-        // ---------- Local models ----------
-        container.addView(UiKit.section(c, "📱 Local models (offline)"))
-        val installed = try { LocalModelCatalog.all(c).filter { ModelDownloader.isInstalled(c, it) } } catch (e: Exception) { emptyList() }
-        val lm = UiKit.card(c)
-        if (installed.isEmpty()) {
-            lm.addView(UiKit.text(c, "Abhi koi local model installed nahi. Settings → Local AI models se download karo; tab online calls kam hongi.", 13f, dim = true))
-        } else {
-            val loaded = try { LocalLlm.loadedModelId() } catch (e: Exception) { null }
-            for (m in installed) {
-                lm.addView(UiKit.text(c, "✅ " + m.name + " (" + m.sizeMb + " MB)" + (if (m.id == loaded) " · abhi memory mein" else ""), 13f))
-            }
-        }
-        container.addView(lm)
-
         // ---------- Samay chuno ----------
         container.addView(UiKit.section(c, "📊 Hisaab"))
         val r = UiKit.row(c)
